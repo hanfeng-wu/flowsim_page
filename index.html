@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FlowSim: Rendering-Free Closed-Loop Simulation for Evaluating End-to-End Driving Systems</title>
+  <meta name="description" content="FlowSim is a rendering-free simulation paradigm that predicts the internal latent of a frozen end-to-end driving stack directly from a previous latent and symbolic scene conditions.">
+  <link rel="stylesheet" href="static/css/style.css?v=2">
+</head>
+<body>
+
+<header class="hero">
+  <div class="container">
+    <h1 class="title"><span class="sc">FlowSim</span>: Rendering-Free Closed-Loop Simulation for Evaluating End-to-End Driving Systems</h1>
+    <p class="authors">
+      <span class="author"><a href="https://hanfeng-wu.github.io/">Hanfeng Wu</a><sup>1,2</sup></span>
+      <span class="author"><a href="https://ieeexplore.ieee.org/author/37071284900">Alvaro Marcos-Ramiro</a><sup>2</sup></span>
+      <span class="author"><a href="https://www.researchgate.net/scientific-contributions/Michael-Schmidt-2209379304">Michael Schmidt</a><sup>2</sup></span>
+      <span class="author"><a href="https://www.mrt.kit.edu/mitarbeiter_stiller.php">Christoph Stiller</a><sup>1</sup></span>
+    </p>
+    <p class="affiliations">
+      <span><sup>1</sup>Karlsruhe Institute of Technology, Karlsruhe, Germany</span>
+      <span><sup>2</sup>BMW Group, Munich, Germany</span>
+    </p>
+    <p class="venue">arXiv:2610.18030 [cs.CV], October 2026</p>
+    <div class="links">
+      <a class="btn" href="https://arxiv.org/abs/2610.18030">arXiv</a>
+      <a class="btn" href="https://arxiv.org/pdf/2610.18030">PDF</a>
+      <a class="btn" href="https://github.com/hanfeng-wu/FlowSim">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section class="container">
+  <figure class="teaser">
+    <img src="static/images/compare.png" alt="Comparison of simulation paradigms: neural reconstruction, world model and FlowSim">
+    <figcaption>
+      Neural reconstruction and driving world models both generate images that must be re-encoded by the frozen perception encoder.
+      <span class="sc">FlowSim</span> predicts the latent <i>&#7824;<sub>t</sub></i> directly from the previous latent and the target-frame scene conditions,
+      skipping image rendering entirely.
+    </figcaption>
+  </figure>
+</section>
+
+<section class="container narrow">
+  <h2>Abstract</h2>
+  <p>
+    Closed-loop evaluation of end-to-end (E2E) driving systems typically relies on generating sensor observations and re-processing them
+    through the perception encoder, introducing substantial computational cost and a sim2real gap between simulated and real sensor observations.
+    In this paper, we ask a more fundamental question: <em>is image-space simulation necessary for closed-loop evaluation of E2E driving systems?</em>
+    We propose <span class="sc">FlowSim</span>, a rendering-free simulation paradigm that predicts the internal latent representation directly from a
+    previous latent and target-frame symbolic scene conditions. The predicted latent is then processed by the original frozen downstream modules,
+    eliminating image rendering and perception re-encoding. Explicit cross-frame agent association improves latent transition prediction and rollout
+    stability, while variable-horizon simulation enables long-horizon simulation from a common real anchor without accumulating intermediate rollout errors.
+  </p>
+  <p>
+    Experiments on nuScenes and NavSim demonstrate that <span class="sc">FlowSim</span> preserves downstream behavior competitively with, and often exceeds,
+    image-space simulation in source-to-reference agreement across variable simulation horizons and both dense and sparse latent representations.
+    By predicting the latent directly, both instantiations of <span class="sc">FlowSim</span> simulate each step in <b>0.04&ndash;0.06&nbsp;s</b>,
+    substantially faster than the image-space simulation methods they are compared against.
+  </p>
+</section>
+
+<section id="videos" class="container">
+  <h2>Counterfactual Simulation Videos</h2>
+  <p class="narrow center">
+    Because <span class="sc">FlowSim</span> is driven by symbolic scene conditions, the scene can be edited and the frozen driving stack
+    is evaluated on the resulting latent, without rendering a single image.
+  </p>
+
+  <div class="video-grid">
+    <figure class="video-card demo">
+      <video src="static/videos/demo.m4v" controls autoplay muted loop playsinline preload="metadata"></video>
+    </figure>
+  </div>
+
+  <div class="video-grid two">
+    <figure class="video-card">
+      <img src="static/videos/lane_change_truck.gif" alt="UniAD counterfactual: surrounding vehicle cutting in" loading="lazy">
+      <figcaption>
+        <b>Cut-in (UniAD, nuScenes).</b> A surrounding vehicle is edited to change lanes in front of the ego vehicle.
+        Rows: surround-view cameras; baseline vs. manipulated <span class="sc">FlowSim</span> BEV latent (PCA) and their difference;
+        frozen UniAD outputs decoded from each latent and from the real BEV.
+      </figcaption>
+    </figure>
+    <figure class="video-card">
+      <img src="static/videos/lane_change_slow.gif" alt="UniAD counterfactual: lane change of a slow vehicle" loading="lazy">
+      <figcaption>
+        <b>Lane change (UniAD, nuScenes).</b> Another edited lane-change scenario. The difference map highlights where the manipulated agent
+        moved in the latent; the downstream detection, map and planning heads react to the edited scene.
+      </figcaption>
+    </figure>
+  </div>
+  <div class="video-grid one">
+    <figure class="video-card small">
+      <img src="static/videos/gradually_stop.gif" alt="TransFuser counterfactual: leading vehicle gradually stopping" loading="lazy">
+      <figcaption>
+        <b>Lead vehicle braking (TransFuser, NavSim).</b> The leading vehicle is edited to gradually brake to a stop while the ego is shifted.
+        Left: TransFuser semantics, agents and trajectory from the real observation; right: from the <span class="sc">FlowSim</span>-predicted latent.
+        Bottom: corresponding fused BEV latents.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="method" class="container">
+  <h2>Method</h2>
+  <figure>
+    <img src="static/images/main.png" alt="FlowSim overview">
+    <figcaption>
+      <b>Overview of <span class="sc">FlowSim</span>.</b> <i>Top: training.</i> A frozen perception encoder extracts source and target latents
+      <i>Z<sub>t&minus;1</sub></i>, <i>Z<sub>t</sub></i> from real sensor observations. Given <i>Z<sub>t&minus;1</sub></i> and target-frame symbolic
+      scene conditions, <span class="sc">FlowSim</span> predicts <i>&#7824;<sub>t</sub></i> and is trained to reconstruct <i>Z<sub>t</sub></i>.
+      The same formulation is instantiated with a residual U-Net for UniAD's dense BEV latent and a conditional flow-matching DiT for TransFuser's
+      sparse latent. <i>Bottom: simulation protocols.</i> Autoregressive and variable-horizon simulation; the latter predicts multiple future horizons
+      directly from a common real anchor. Both can be coupled with a symbolic scene simulator for closed-loop simulation without rendering.
+    </figcaption>
+  </figure>
+
+  <div class="cols">
+    <div class="col">
+      <h3>Latent-simulation formulation</h3>
+      <p class="eq">&#7824;<sub>t</sub> = f<sub>&theta;</sub>(Z<sub>t&minus;1</sub>, A<sub>t</sub>, M<sub>t</sub>, e<sub>t</sub>)</p>
+      <p>
+        <i>A<sub>t</sub></i>: surrounding agents, <i>M<sub>t</sub></i>: map context, <i>e<sub>t</sub></i>: ego-state change.
+        The simulator <i>f<sub>&theta;</sub></i> is the only trainable component; all downstream modules stay frozen.
+        Training uses a simple latent reconstruction loss <i>&#8466; = &#8214;&#7824;<sub>t</sub> &minus; Z<sub>t</sub>&#8214;<sub>1</sub></i>.
+      </p>
+      <h3>Variable-horizon simulation</h3>
+      <p>
+        Training pairs are sampled with multiple source&ndash;target intervals &Delta;t. At evaluation, any supported horizon is predicted in a
+        single step from the nearest real anchor, avoiding the compounding error of generated-to-generated autoregressive rollouts, while
+        conditions can still be updated online between steps.
+      </p>
+    </div>
+    <div class="col">
+      <h3>Associated dynamic-agent conditioning</h3>
+      <figure class="inline">
+        <img src="static/images/agent_association.png" alt="Associated dynamic-agent conditioning">
+      </figure>
+      <p>
+        Each target-frame agent <i>s<sub>i</sub><sup>t</sup></i> is augmented with its source-frame correspondence, relative motion and a validity flag:
+        <i>a<sub>i</sub><sup>t</sup> = [s<sub>i</sub><sup>t</sup>, s<sub>i</sub><sup>t&minus;1</sup>, &Delta;s<sub>i</sub>, c<sub>i</sub>]</i>.
+        Temporal correspondence becomes an explicit conditioning signal instead of something the simulator must infer.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="results" class="container">
+  <h2>Qualitative Results</h2>
+  <figure>
+    <img src="static/images/nuscenes_vis.jpg" alt="Qualitative comparison on nuScenes">
+    <figcaption>
+      <b>Image-space vs. latent-space simulation on nuScenes (UniAD)</b> at &Delta;t = 0.5&nbsp;s (left) and 4.0&nbsp;s (right).
+      Each row shows the surround-view inputs, the resulting BEV feature and UniAD's detection / lane / drivable-area / planning outputs.
+      Green boxes: GT (agent conditions); red: predictions. At 4.0&nbsp;s, DreamForge and SplatAD accumulate rendering and re-encoding artifacts,
+      while <span class="sc">FlowSim</span>'s outputs stay close to GT.
+    </figcaption>
+  </figure>
+
+  <figure>
+    <img src="static/images/navsim_vis.jpg" alt="Qualitative comparison on NavSim" class="medium">
+    <figcaption>
+      <b>Single-frame agreement on NavSim navtest (TransFuser).</b> Top: front-view camera crops for the real frame and OmniRe's rendered frame.
+      Bottom: TransFuser BEV segmentation, agent boxes and plans for GT, <span class="sc">FlowSim</span> without / with agent association, and OmniRe.
+    </figcaption>
+  </figure>
+
+  <figure>
+    <img src="static/images/closed_loop.jpg" alt="Counterfactual closed-loop rollout">
+    <figcaption>
+      <b>Toward closed-loop evaluation.</b> A leading vehicle that originally stops at a red light is edited to keep driving. Agent, map and ego
+      conditions are updated online by a symbolic simulator from <span class="sc">FlowSim</span>'s own planned trajectory over a 5.5&nbsp;s rollout.
+      Each panel compares BEV segmentation decoded from the logged real latent (<i>Real</i>) and from <span class="sc">FlowSim</span>'s simulated latent (<i>Sim</i>).
+    </figcaption>
+  </figure>
+</section>
+
+<section class="container">
+  <h2>Quantitative Results</h2>
+
+  <h3>Dense latent: UniAD on nuScenes</h3>
+  <p class="note">Source-to-reference agreement with the frozen UniAD stack. &uarr; higher is better, &darr; lower is better. Best per horizon in bold.
+    &dagger; CPU offload due to insufficient VRAM on A100 (40&nbsp;GB).</p>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th rowspan="2">Source</th><th rowspan="2">&Delta;t</th>
+        <th colspan="2">Detection</th><th colspan="2">Map</th><th colspan="2">Motion</th><th colspan="2">Planning</th><th colspan="2">Inference</th></tr>
+      <tr><th>IoU&uarr;</th><th>cADE&darr;</th><th>Lane&uarr;</th><th>Drive&uarr;</th><th>ADE&darr;</th><th>FDE&darr;</th><th>ADE&darr;</th><th>FDE&darr;</th><th>Time (s)&darr;</th><th>VRAM (GB)&darr;</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>SplatAD (gt hist.)</td><td rowspan="4">0.5 s</td><td><b>0.75</b></td><td>1.86</td><td><b>0.48</b></td><td>0.84</td><td>6.03</td><td>11.03</td><td>0.31</td><td>0.64</td><td>0.13</td><td>4.5</td></tr>
+      <tr><td>DreamForge (gt hist.)</td><td>0.65</td><td>2.32</td><td><b>0.48</b></td><td>0.85</td><td>6.35</td><td>11.57</td><td><b>0.30</b></td><td><b>0.61</b></td><td>92.3</td><td>38.2</td></tr>
+      <tr><td>Warp (R<sub>t</sub>=0)</td><td>0.57</td><td>1.89</td><td>0.46</td><td>0.82</td><td><b>5.87</b></td><td><b>10.72</b></td><td>0.62</td><td>1.14</td><td>&lt;0.01</td><td>&ndash;</td></tr>
+      <tr class="ours"><td>FlowSim (VH, assoc.)</td><td>0.68</td><td><b>1.69</b></td><td><b>0.48</b></td><td><b>0.86</b></td><td>5.96</td><td>10.88</td><td>0.53</td><td>0.97</td><td>0.04</td><td>3.0</td></tr>
+
+      <tr class="sep"><td>SplatAD (gen. hist.)</td><td rowspan="4">1.5 s</td><td>0.55</td><td>4.65</td><td>0.35</td><td>0.73</td><td>8.13</td><td>14.87</td><td><b>0.61</b></td><td>1.19</td><td>0.13</td><td>4.5</td></tr>
+      <tr><td>DreamForge (gen. hist.)</td><td>0.38</td><td>6.17</td><td>0.27</td><td>0.69</td><td>8.92</td><td>16.29</td><td>0.99</td><td>2.08</td><td>267.8</td><td>40.0</td></tr>
+      <tr><td>Warp (R<sub>t</sub>=0)</td><td>0.37</td><td>3.94</td><td>0.34</td><td>0.69</td><td>7.70</td><td>13.95</td><td>1.35</td><td>2.41</td><td>&lt;0.01</td><td>&ndash;</td></tr>
+      <tr class="ours"><td>FlowSim (VH, assoc.)</td><td><b>0.58</b></td><td><b>1.99</b></td><td><b>0.43</b></td><td><b>0.82</b></td><td><b>7.09</b></td><td><b>12.86</b></td><td><b>0.61</b></td><td><b>1.14</b></td><td>0.04</td><td>3.0</td></tr>
+
+      <tr class="sep"><td>SplatAD (gen. hist.)</td><td rowspan="4">2.5 s</td><td>0.55</td><td>4.65</td><td>0.35</td><td>0.73</td><td>8.13</td><td>14.87</td><td>0.61</td><td>1.19</td><td>0.13</td><td>4.5</td></tr>
+      <tr><td>DreamForge (gen. hist.)</td><td>0.38</td><td>5.91</td><td>0.26</td><td>0.67</td><td>8.99</td><td>16.41</td><td>0.97</td><td>2.03</td><td>401.5</td><td>25.8&dagger;</td></tr>
+      <tr><td>Warp (R<sub>t</sub>=0)</td><td>0.31</td><td>5.33</td><td>0.27</td><td>0.61</td><td>8.04</td><td>14.53</td><td>2.03</td><td>3.61</td><td>&lt;0.01</td><td>&ndash;</td></tr>
+      <tr class="ours"><td>FlowSim (VH, assoc.)</td><td><b>0.56</b></td><td><b>2.12</b></td><td><b>0.40</b></td><td><b>0.81</b></td><td><b>7.24</b></td><td><b>13.14</b></td><td><b>0.60</b></td><td><b>1.13</b></td><td>0.04</td><td>3.0</td></tr>
+
+      <tr class="sep"><td>SplatAD (gen. hist.)</td><td rowspan="4">4.0 s</td><td><b>0.55</b></td><td>4.65</td><td>0.35</td><td>0.73</td><td>8.13</td><td>14.87</td><td><b>0.61</b></td><td><b>1.19</b></td><td>0.13</td><td>4.5</td></tr>
+      <tr><td>DreamForge (gen. hist.)</td><td>0.36</td><td>6.16</td><td>0.24</td><td>0.65</td><td>8.83</td><td>16.11</td><td>0.99</td><td>2.07</td><td>726.0</td><td>25.8&dagger;</td></tr>
+      <tr><td>Warp (R<sub>t</sub>=0)</td><td>0.24</td><td>6.81</td><td>0.21</td><td>0.52</td><td>8.17</td><td>14.75</td><td>2.77</td><td>4.88</td><td>&lt;0.01</td><td>&ndash;</td></tr>
+      <tr class="ours"><td>FlowSim (VH, assoc.)</td><td><b>0.55</b></td><td><b>2.18</b></td><td><b>0.38</b></td><td><b>0.79</b></td><td><b>7.44</b></td><td><b>13.50</b></td><td>0.66</td><td>1.23</td><td>0.04</td><td>3.0</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Sparse latent: TransFuser on NavSim navtest</h3>
+  <p class="note">Each step <i>n</i> is a 0.5&nbsp;s keyframe (<i>n</i>=4 &rarr; 2.0&nbsp;s). Bold marks the best <span class="sc">FlowSim</span> result per horizon.
+    Time is the cumulative source-generation time to reach each horizon.</p>
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th rowspan="2">Source</th><th rowspan="2"><i>n</i></th>
+        <th colspan="2">Segmentation</th><th colspan="2">Detection</th><th colspan="2">Planning</th><th>Inference</th></tr>
+      <tr><th>Pix.&uarr;</th><th>mIoU&uarr;</th><th>Box L2&darr;</th><th>Head.&darr;</th><th>ADE&darr;</th><th>FDE&darr;</th><th>Time (s)&darr;</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>OmniRe</td><td>&ndash;</td><td>0.77</td><td>0.42</td><td>5.78</td><td>0.84</td><td>0.61</td><td>1.60</td><td>0.45</td></tr>
+
+      <tr class="sep"><td rowspan="4">FlowSim (AR, no assoc.)</td><td>1</td><td>0.89</td><td>0.64</td><td><b>2.36</b></td><td>0.48</td><td>0.44</td><td>1.17</td><td>0.06</td></tr>
+      <tr><td>2</td><td>0.86</td><td>0.59</td><td>2.67</td><td>0.58</td><td>0.59</td><td>1.56</td><td>0.12</td></tr>
+      <tr><td>3</td><td>0.85</td><td>0.56</td><td>2.76</td><td>0.62</td><td>0.67</td><td>1.77</td><td>0.18</td></tr>
+      <tr><td>4</td><td>0.85</td><td>0.55</td><td>2.76</td><td>0.62</td><td>0.71</td><td>1.89</td><td>0.24</td></tr>
+
+      <tr class="sep"><td rowspan="4">FlowSim (AR, assoc.)</td><td>1</td><td><b>0.89</b></td><td><b>0.65</b></td><td><b>2.36</b></td><td><b>0.43</b></td><td><b>0.38</b></td><td><b>1.00</b></td><td>0.06</td></tr>
+      <tr><td>2</td><td>0.87</td><td>0.60</td><td>2.73</td><td>0.53</td><td><b>0.49</b></td><td><b>1.31</b></td><td>0.12</td></tr>
+      <tr><td>3</td><td>0.86</td><td>0.58</td><td>2.83</td><td>0.57</td><td>0.55</td><td>1.47</td><td>0.18</td></tr>
+      <tr><td>4</td><td>0.85</td><td>0.56</td><td>2.84</td><td>0.60</td><td>0.58</td><td>1.56</td><td>0.23</td></tr>
+
+      <tr class="sep ours"><td rowspan="4">FlowSim (VH, assoc.)</td><td>1</td><td>0.88</td><td>0.62</td><td>2.51</td><td>0.49</td><td>0.49</td><td>1.31</td><td>0.06</td></tr>
+      <tr class="ours"><td>2</td><td><b>0.88</b></td><td><b>0.62</b></td><td><b>2.57</b></td><td><b>0.50</b></td><td>0.50</td><td>1.35</td><td><b>0.06</b></td></tr>
+      <tr class="ours"><td>3</td><td><b>0.87</b></td><td><b>0.61</b></td><td><b>2.60</b></td><td><b>0.52</b></td><td><b>0.51</b></td><td><b>1.38</b></td><td><b>0.06</b></td></tr>
+      <tr class="ours"><td>4</td><td><b>0.87</b></td><td><b>0.60</b></td><td><b>2.66</b></td><td><b>0.53</b></td><td><b>0.52</b></td><td><b>1.40</b></td><td><b>0.06</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Key findings</h3>
+  <ul class="findings">
+    <li><b>Latent beats image space at longer horizons.</b> From 1.5&nbsp;s to 4.0&nbsp;s, <span class="sc">FlowSim</span> outperforms DreamForge on every metric;
+      at 4.0&nbsp;s detection IoU rises from 0.36 to 0.55 and planning ADE/FDE drops from 0.99/2.07&nbsp;m to 0.66/1.23&nbsp;m.</li>
+    <li><b>Sparse latents too.</b> On NavSim, <span class="sc">FlowSim</span> with agent association beats OmniRe on every metric
+      (mIoU 0.42 &rarr; 0.65, planning ADE 0.61 &rarr; 0.38&nbsp;m) at 0.06&nbsp;s vs. 0.45&nbsp;s per step.</li>
+    <li><b>Variable-horizon avoids drift.</b> On UniAD, AR planning FDE grows to 1.45&nbsp;m at 4.0&nbsp;s while VH stays at 1.23&nbsp;m;
+      on TransFuser, AR ADE grows 0.38 &rarr; 0.58&nbsp;m over 4 steps while VH stays at 0.49 &rarr; 0.52&nbsp;m.</li>
+    <li><b>Agent association stabilizes rollouts.</b> Without it, UniAD AR planning ADE/FDE at 4.0&nbsp;s degrades from 0.77/1.45&nbsp;m to 1.97/3.76&nbsp;m.</li>
+  </ul>
+</section>
+
+<section class="container narrow">
+  <h2>BibTeX</h2>
+  <pre class="bibtex">@article{wu2026flowsim,
+  title         = {FlowSim: Rendering-Free Closed-Loop Simulation for Evaluating End-to-End Driving Systems},
+  author        = {Wu, Hanfeng and Marcos-Ramiro, Alvaro and Schmidt, Michael and Stiller, Christoph},
+  journal       = {arXiv preprint arXiv:2610.18030},
+  year          = {2026},
+  eprint        = {2610.18030},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.CV},
+  url           = {https://arxiv.org/abs/2610.18030}
+}</pre>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <p>&copy; 2026 Hanfeng Wu, Alvaro Marcos-Ramiro, Michael Schmidt, Christoph Stiller.</p>
+  </div>
+</footer>
+
+</body>
+</html>

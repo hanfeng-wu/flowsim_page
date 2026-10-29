@@ -1,0 +1,102 @@
+:root {
+  --fg: #1f2328;
+  --muted: #59636e;
+  --accent: #d9730d;
+  --accent-bg: #fff4e8;
+  --border: #e3e6ea;
+  --bg-alt: #f7f8fa;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  color: var(--fg);
+  line-height: 1.6;
+  background: #fff;
+}
+
+.container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+.narrow { max-width: 860px; margin-left: auto; margin-right: auto; }
+.center { text-align: center; }
+.sc { font-variant: small-caps; font-weight: 600; }
+
+section { padding: 36px 0; }
+section + section { border-top: 1px solid var(--border); }
+
+h2 { font-size: 1.8rem; text-align: center; margin: 0 0 20px; }
+h3 { font-size: 1.15rem; margin: 24px 0 8px; }
+
+/* Hero */
+.hero { text-align: center; padding: 56px 0 28px; background: linear-gradient(180deg, var(--accent-bg), #fff); }
+.title { font-size: 2.3rem; line-height: 1.25; margin: 0 auto 16px; max-width: 950px; }
+.authors { font-size: 1.2rem; margin: 4px 0; }
+.author { display: inline-block; margin: 0 10px; }
+.authors a { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--muted); }
+.authors a:hover { color: var(--accent); }
+.affiliations { color: var(--muted); font-size: 0.95rem; margin: 6px 0; }
+.affiliations span { display: inline-block; margin: 0 10px; }
+.venue { color: var(--muted); margin: 6px 0 20px; }
+.links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.btn {
+  display: inline-block; padding: 8px 18px; border-radius: 999px;
+  background: #24292f; color: #fff; text-decoration: none; font-weight: 500; font-size: 0.95rem;
+}
+.btn:hover { background: #3a4048; }
+.btn.disabled { background: #9aa1a9; pointer-events: none; }
+
+/* Figures */
+figure { margin: 24px 0; text-align: center; }
+figure img { max-width: 100%; height: auto; border-radius: 6px; }
+figure img.medium { max-width: 80%; }
+figcaption { color: var(--muted); font-size: 0.95rem; text-align: left; margin: 10px auto 0; max-width: 960px; }
+.teaser img { max-width: 720px; width: 100%; }
+figure.inline { margin: 8px 0; }
+
+/* Highlights */
+.highlights { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 24px; }
+.hl { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+.hl .num { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+.hl .lbl { font-size: 0.85rem; color: var(--muted); }
+
+/* Videos */
+.video-grid { display: grid; gap: 20px; margin-top: 16px; }
+.video-grid.two { grid-template-columns: 1fr 1fr; }
+.video-grid.one { grid-template-columns: 1fr; justify-items: center; }
+.video-card { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin: 0; }
+.video-card img, .video-card video { width: 100%; border-radius: 6px; background: #000; display: block; }
+.video-card.small { max-width: 560px; }
+.video-card.demo { width: 100%; max-width: 960px; margin: 0 auto; }
+.video-card.demo video { margin: 0 auto; }
+
+/* Method */
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+.eq { text-align: center; font-family: "Times New Roman", serif; font-style: italic; font-size: 1.25rem; margin: 8px 0 12px; }
+
+/* Tables */
+.note { color: var(--muted); font-size: 0.9rem; }
+.table-wrap { overflow-x: auto; margin-bottom: 16px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+th, td { padding: 5px 8px; text-align: center; white-space: nowrap; }
+thead tr:first-child th { border-top: 2px solid var(--fg); }
+thead tr:last-child th { border-bottom: 1px solid var(--fg); }
+tbody tr:last-child td { border-bottom: 2px solid var(--fg); }
+tr.sep td { border-top: 1px solid var(--border); }
+tr.ours td { background: var(--accent-bg); }
+
+.findings li { margin-bottom: 6px; }
+
+/* BibTeX */
+.bibtex { background: var(--bg-alt); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 0.85rem; }
+
+footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; text-align: center; padding: 20px 0; }
+
+@media (max-width: 800px) {
+  .title { font-size: 1.6rem; }
+  .highlights { grid-template-columns: repeat(2, 1fr); }
+  .video-grid.two, .cols { grid-template-columns: 1fr; }
+  figure img.medium { max-width: 100%; }
+}
